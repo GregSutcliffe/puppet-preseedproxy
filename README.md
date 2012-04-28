@@ -9,7 +9,7 @@ task is on the TODO.
 
 # Description
 
-Foreman is wonderful when your host are on a subnet controlled by Foreman, as
+Foreman is wonderful when your hosts are on a subnet controlled by Foreman, as
 then your hosts will PXE, TFTP, and DHCP into the correct installer, retrieve
 the corect preseed, and install.
 
@@ -17,7 +17,7 @@ But what if you can't control the boot environment? What if some of your
 installers want to test the install at home, or in some small office that you
 have no authority over?
 
-That's where this proxy comes it. It provides a system where a user can boot
+That's where this proxy comes in. It provides a system where a user can boot
 from the normal Debian install CD, enter the URL of this proxy, enter the
 hostname of the Foreman host to build, and recieve a preseed/finish/puppet cert
 just like normal.
@@ -37,11 +37,11 @@ for details, and _then_ return the real preseed.
 
 It also relies on Foreman's _spoof_ feature to return the unattended data. Since
 the client does not talk to Foreman directly, the proxy looks up the IP address
-configured with the client, and uses that to get the spoof=<ip> URL.
+configured with the client, and uses that to get the `spoof=<ip>` URL.
 
 # Extra features
 
-This proxy was developed partly because we didn;t want to expose out Foreman
+This proxy was developed partly because we didn't want to expose our Foreman
 instance to the public Internet. The proxy transparently rewrites the URLs in
 your preseed, so URLS like
 
@@ -64,8 +64,8 @@ This module has two dependencies, both from https://github.com/theforeman/:
 * puppet-passenger
 
 Simply `include pxeproxy` to set up the files. There's a mess of hardcoded
-variables in pxeproxy.rb - edit to suit, and uncomment the return in get_cookie
-if you're not using authentication.
+variables in `pxeproxy.rb` - edit to suit, and uncomment the return in 
+`get_cookie` if you're not using authentication.
 
 # Testing
 
