@@ -1,13 +1,23 @@
-# PXEProxy Puppet module
+# Preseed Proxy Module
 
-This module is horribly named, as it's actually a Debian Preseed proxy for
-TheForeman.
+In despite of the filenames, this module installs a Debian Preseed proxy for
+Foreman. The github repository (and this README) are named correctly, and the
+files contained herein will be renamed properly at some point
 
 This module is currently still quite heavily flavoured by the way we operate - 
 for example you'll see 'sitecode' used a lot instead of 'hostname'. A cleanup
 task is on the TODO.
 
 # Description
+
+Provision your server in Foreman - from anywhere in the world!
+
+Your server can be located anywhere in the world, out of reach of any
+Foreman-controlled DHCP, DNS and TFTP servers. By booting a standard
+(currently Debian only) install CD and pointing the Debian Installer at the
+Preseed proxy ...
+
+# Background
 
 Foreman is wonderful when your hosts are on a subnet controlled by Foreman, as
 then your hosts will PXE, TFTP, and DHCP into the correct installer, retrieve
@@ -17,10 +27,7 @@ But what if you can't control the boot environment? What if some of your
 installers want to test the install at home, or in some small office that you
 have no authority over?
 
-That's where this proxy comes in. It provides a system where a user can boot
-from the normal Debian install CD, enter the URL of this proxy, enter the
-hostname of the Foreman host to build, and recieve a preseed/finish/puppet cert
-just like normal.
+That's where this proxy comes in. 
 
 # How it works
 
