@@ -1,0 +1,16 @@
+<VirtualHost *:80>
+  ServerAdmin foo@mydomain.com
+  ServerName autoinstall.mydomain.com
+  ServerAlias autoinstall
+
+  DocumentRoot     <%= app_root %>/public
+  PassengerAppRoot <%= app_root %>
+
+  RailsAutoDetect On
+  AddDefaultCharset UTF-8
+
+  ErrorLog  <%= vhost %>/logs/error.log
+  CustomLog <%= vhost %>/logs/access.log combined
+  LogLevel warn
+
+</VirtualHost>

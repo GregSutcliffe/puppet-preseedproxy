@@ -1,0 +1,132 @@
+# Ruby Sinatra webapp
+# Takes a mac and a sitecode and tries to determine the correct preseed data
+
+require 'rubygems'
+require 'sinatra'
+require 'json'                                                                  
+require 'rest_client'                                                           
+require 'open-uri'
+require 'net/http'
+
+require 'pp'                                                                    
+
+set :public_folder, File.dirname(__FILE__) + '/static'
+
+helpers do
+
+  def manage_autosign(certname, action, host = nil)
+    # TODO fix proxy<->foreman hardcodes
+    host         ||= 'foreman'
+    port           = '80'
+    proxy_port     = '8443'
+    autosign_url   = "/puppet/ca/autosign/#{certname}"
+    cert_url       = "/puppet/ca/#{certname}"
+
+    case action
+    when :enable
+      # Delete old cert
+      req = Net::HTTP::Delete.new("#{cert_url}", initheader = {'Content-Type' =>'application/json'})
+      req.body = { "certname" => certname }
+      response = Net::HTTP.new(host, proxy_port).start {|http| http.request(req) }
+
+      # Add Autosign
+      req = Net::HTTP::Post.new("#{autosign_url}", initheader = {'Content-Type' =>'application/json'})
+      req.body = { "certname" => certname }
+      response = Net::HTTP.new(host, proxy_port).start {|http| http.request(req) }
+    when :delete
+      # Remove Autosign
+      req = Net::HTTP::Delete.new("#{autosign_url}", initheader = {'Content-Type' =>'application/json'})
+      req.body = { "certname" => certname }
+      response = Net::HTTP.new(host, proxy_port).start {|http| http.request(req) }
+
+      # Cancel build mode
+      url = "/hosts/#{certname}/cancelBuild"
+      req = Net::HTTP::Get.new(url, initheader = {'Content-Type' =>'application/json', "Cookie" => get_cookie})
+      response = Net::HTTP.new(host, port).start {|http| http.request(req) }
+
+    end
+    return response.code
+  end
+
+  def get_cookie
+    # Uncomment this is you don't use Auth
+    # return String.new
+    user = 'set-user-here'
+    pw   = 'set-pw-here'
+     Net::HTTP.post_form(URI.parse('http://foreman/users/login'),
+       {'login[login]'=> user, 'login[password]'=> pw }).response['set-cookie'].split('; ',2)[0]
+  end
+
+  def get_foreman_array(path, options = { })                                      
+                                                                                
+    options[:foreman]  ||= "foreman"
+    options[:protocol] ||= "https"
+    options[:user]     ||= "set-user-here" # nil if you don't use auth
+    options[:pass]     ||= "set-pw-here"   # nil if you don't use auth
+                                                                                
+    url = "#{options[:protocol]}://#{options[:foreman]}/#{path}?format=json"      
+                                                                                
+    JSON.parse(RestClient::Resource.new(url, options[:user], options[:pass]).get(:content_type => :json))
+                                                                                
+  end
+
+end
+
+get '/d-i/squeeze/proxy/:sitecode.cfg' do
+  redirect "/#{params[:sitecode]}/preseed"
+end
+
+get '/:sitecode/?:action?' do
+
+  my_ip  = "<%= dns_name %>"
+  server = 'foreman'
+
+  # Get new API data
+  hosts = get_foreman_array('/hosts', {:foreman => server} )
+  hosts.map! {|h| h.values.first}
+  names = hosts.map {|h| h['name']}
+  found = names.map {|n| n if n =~ /#{params[:sitecode]}/ }.compact
+
+  # Check we have a single host
+  return "notfound.cfg" if found.size != 1
+
+  data = get_foreman_array("hosts/#{found.first}", {:foreman => server})
+  return "notauth.cfg" unless data["host"]["build"]
+
+  case params[:action]
+  when "preseed"
+    # Enable autosign for the finish script
+    manage_autosign(found.first,:enable,server)
+
+    # Get the preseed from Foreman
+    get_url="http://#{server}/unattended/provision?spoof=#{data["host"]["ip"]}"
+    data = open(get_url, "Cookie" => get_cookie ).read
+
+    # Rewrite calls to foreman to route to this box
+    rewrite_url="http://#{my_ip}/#{params[:sitecode]}/"
+
+    # Do the substitution and return
+    return data.gsub(/http:\/\/#{server}\/unattended\//,rewrite_url)
+  when "finish"
+    # Get the finish from Foreman
+    get_url="http://#{server}/unattended/finish?spoof=#{data["host"]["ip"]}"
+    data = open(get_url, "Cookie" => get_cookie ).read
+
+    # Rewrite calls to foreman to route to this box
+    rewrite_url="http://#{my_ip}/#{params[:sitecode]}/"
+
+    # Do the substitution and return
+    return data.gsub(/http:\/\/#{server}\/unattended\//,rewrite_url)
+  when "built"
+    # Remove autosign and mark built
+    manage_autosign(found.first,:delete,server)
+  else
+    # No action means first call, tell it to get the real file
+    return "/proxy/#{params[:sitecode]}.cfg"
+  end
+
+end
+
+get '/' do
+  halt 401, 'no sitecode'
+end
